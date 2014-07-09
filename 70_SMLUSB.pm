@@ -1,0 +1,1 @@
+/opt/fhem/FHEM/70_SMLUSB.pm
