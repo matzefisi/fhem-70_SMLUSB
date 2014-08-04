@@ -63,6 +63,7 @@ else {
  
 my $telegramm;
 my $scaler;
+my $typelength;
 my $unit;
 my $direction;
 
@@ -74,7 +75,6 @@ my $length_value = 0;
 
 while ($smlfile =~ m/7707[0-9A-F]{10}FF[0-9A-F]*/) {
   $telegramm = $&;
-  
   # Try to find the OBIS code in the hash of known and supported OBIS codes
   # OBIS Code with the start (7707) is always 8 bit long (16 nible)
  
@@ -85,6 +85,14 @@ while ($smlfile =~ m/7707[0-9A-F]{10}FF[0-9A-F]*/) {
     $length_all   = 16;    
     $length_value = 0;
     $direction = undef;
+
+
+    print substr($telegramm,0,16);
+
+
+    ###########################################################
+    # Statusword
+    ###########################################################
 
     # Detect length of status word (very static at the moment)
     # You can find more information if you google for type length field
@@ -98,42 +106,54 @@ while ($smlfile =~ m/7707[0-9A-F]{10}FF[0-9A-F]*/) {
     $direction = "Bezug"       if (substr($telegramm,$length_all-4,2) eq "82");
     $direction = "Einspeisung" if (substr($telegramm,$length_all-4,2) eq "A2");
 
+    print " " . substr($telegramm,16,4);
+
+
+    ###########################################################
     # Detect the unit. Also very static and could be improved
+    ###########################################################
 
     if (substr($telegramm,$length_all,4) eq "621E") {
         $unit = "W/h"; }
     else {
         $unit = "W"; }
 
+    # Possible bug! Unit could theoretically be longer than 2 byte!
     $length_all+=4;
 
-    # Detect the scaler. Also very static and could be improved
+    print " " . substr($telegramm,20,4);
 
-    print substr($telegramm,$length_all,4);
-    $scaler=10 if (substr($telegramm,$length_all,4) eq "52FF");
-    $scaler=10 if (substr($telegramm,$length_all,4) eq "52FE");
-    $scaler=1  if (substr($telegramm,$length_all,4) eq "52FC"); 
-    $scaler=1  if (substr($telegramm,$length_all,4) eq "5200");
-    $scaler=1  if (substr($telegramm,$length_all,4) eq "5201");
+    ############################################################
+    # Calculate the scaler 
+    ############################################################
 
+    $scaler = 10**hexstr_to_signed8int(substr($telegramm,$length_all+2,2));
+    # Possible bug! Scaler could theoretically be longer than 2 byte!
     $length_all+=4;
 
-    # Detect the value length.
+    print " " . substr($telegramm,24,4);
+
+    ############################################################
+    # Extract value
+    ############################################################
 
     $length_value=hexstr_to_signed32int(substr($telegramm,$length_all+1,1))*2;
     $length_all+=2;   
-   
+    
+    print " " . substr($telegramm,28,2);
+    print " " . substr($telegramm,30,hex(substr($telegramm,29,1))*2) . "\t";
+
     # If value is bigger than 9999 W/h change to kW/h 
 
-#    if (sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler) > 9999) { 
-#      $scaler = 10000; 
-#      $unit = "kW/h"; }
+    if (sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))*$scaler) > 9999) { 
+      $scaler = 10**-4; 
+      $unit = "kW/h"; }
 
     # Output of results only if a meaningful value is found. Otherwise nothing happens.
 
-    if (sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler) > 0) {
+    if (sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))*$scaler) > 0) {
       print "$obiscodes{substr($telegramm,0,16)}";
-      print " : " . sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler) . " $unit";  
+      print " : " . sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))*$scaler) . " $unit";  
       if (defined $direction) {
         print " --> Direction: $direction\n"; }
       else {
@@ -163,5 +183,21 @@ sub hexstr_to_signed32int {
     return 0
       if $hexstr !~ /^[0-9A-Fa-f]{1,24}$/;
     my $num = hex($hexstr);
+
+
+    # TODO!!!!! 30 ist falsch! Müsste 32 sein! Umrechnung von signed int!!!!
     return $num >> 31 ? $num - 2 ** 30 : $num;
+}
+sub hexstr_to_signed8int {
+    my ($hexstr) = @_;
+    return 0
+      if $hexstr !~ /^[0-9A-Fa-f]{1,8}$/;
+    my $num = hex($hexstr);
+    return $num >> 7 ? $num - 2 ** 8 : $num;
+}
+sub hex2bin {
+        my $h = shift;
+        my $hlen = length($h);
+        my $blen = $hlen * 4;
+        return unpack("B$blen", pack("H$hlen", $h));
 }
