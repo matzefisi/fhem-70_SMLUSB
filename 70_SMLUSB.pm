@@ -340,10 +340,11 @@ SMLUSB_Parse($$)
 #####################################
 sub hexstr_to_signed32int {
     my ($hexstr) = @_;
-    return 0  
-      if $hexstr !~ /^[0-9A-Fa-f]{1,35}$/;
+    die "Invalid hex string: $hexstr"
+        if $hexstr !~ /^[0-9A-Fa-f]{1,8}$/;
+ 
     my $num = hex($hexstr);
-    return $num >> 31 ? $num - 2 ** 30 : $num;
+    return $num >> 31 ? $num - 2 ** 32 : $num;
 }
 #####################################
 sub
