@@ -253,6 +253,8 @@ SMLUSB_Parse($$)
       $length_all   = 16;    
       $length_value = 0;
 
+      Log3 $hash, 5, "SMLUSB: SML Telegram found: " . substr($telegramm,0,16);
+
       # Detect length of status word (very static at the moment)
       # You can find more information if you google for type length field
       # 01 = Statusword not set
@@ -279,8 +281,6 @@ SMLUSB_Parse($$)
       $scaler=10 if (substr($telegramm,$length_all,4) eq "52FF"); 
       $scaler=1  if (substr($telegramm,$length_all,4) eq "5200");
       $scaler=1  if (substr($telegramm,$length_all,4) eq "5201");
-      
-      Log3 $hash, 5, "SMLUSB: SML Telegram found: $telegramm - Scaler: " . substr($telegramm,$length_all,4);
 
       $length_all+=4;
 
@@ -340,9 +340,8 @@ SMLUSB_Parse($$)
 #####################################
 sub hexstr_to_signed32int {
     my ($hexstr) = @_;
-    #die "Invalid hex string: $hexstr"
-    #    if $hexstr !~ /^[0-9A-Fa-f]{1,8}$/;
- 
+    return 0  
+      if $hexstr !~ /^[0-9A-Fa-f]{1,35}$/;
     my $num = hex($hexstr);
     return $num >> 31 ? $num - 2 ** 32 : $num;
 }
