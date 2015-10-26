@@ -42,7 +42,13 @@ my $smlfile;
 #$smlfile = "1B1B1B1B010101017605000157BA6200620072630101760101050000728E0B0649534B0104CEE5A9CD010163029B007605000157BB620062007263070177010B0649534B0104CEE5A9CD070100620AFFFF72620165000073DB7A77078181C78203FF010101010449534B0177070100000009FF010101010B0649534B0104CEE5A9CD0177070100010800FF650001010001621E52FF5900000000000176FE0177070100010801FF0101621E52FF590000000000016E4F0177070100010802FF0101621E52FF5900000000000008AF0177070100020800FF650001010001621E52FF5900000000000042940177070100020801FF0101621E52FF5900000000000042940177070100020802FF0101621E52FF5900000000000000000177070100100700FF0101621B520055000000000177078181C78205FF010101018302ECFD72FEFFBD79ADF67E06E95026DFB6C6E4AB0FE76F2F108887F7294CC96C9C093F016127A6A2E6AA665F79442F2CDF01010163AE56007605000157BC6200620072630201710163BD3E001B1B1B1B1A00D258";
 
 #Q3 von voller
-$smlfile ="1B1B1B1B01010101760551EEEFCF62006200726500000101760101074553595133420B0645535901071BB1430F010163A9AC00760551EEEFD06200620072650000070177010B0645535901071BB1430F01726201650027E3237977078181C78203FF01010101044553590177070100010800FF0101621E52FC690000000063A6A6480177070100020800FF0101621E52FC6900000000AF8A98FE0177070100010801FF0101621E520165000040C60177070100010802FF0101621E520165000000880177070100020801FF0101621E520165000072870177070100020802FF0101621E520165000000830177070100010700FF0101621B52FE55FFFD57F00177070100600505FF010101016301A00101016360D700760551EEEFD1620062007265000002017101630A8200001B1B1B1B1A01A3FF";
+#$smlfile ="1B1B1B1B01010101760551EEEFCF62006200726500000101760101074553595133420B0645535901071BB1430F010163A9AC00760551EEEFD06200620072650000070177010B0645535901071BB1430F01726201650027E3237977078181C78203FF01010101044553590177070100010800FF0101621E52FC690000000063A6A6480177070100020800FF0101621E52FC6900000000AF8A98FE0177070100010801FF0101621E520165000040C60177070100010802FF0101621E520165000000880177070100020801FF0101621E520165000072870177070100020802FF0101621E520165000000830177070100010700FF0101621B52FE55FFFD57F00177070100600505FF010101016301A00101016360D700760551EEEFD1620062007265000002017101630A8200001B1B1B1B1A01A3FF";
+
+#Hager EHZ363Z5 von zYloriC
+$smlfile = "1B1B1B1B01010101760900000000055BC4136201620072630101760101090000000001C9415D0B06484147010754DED5CF01016303A100760900000000055BC414620162007263070177010B06484147010754DED5CF070100620AFFFF7262016502981D977A77078181C78203FF01010101044841470177070100000009FF010101010B06484147010754DED5CF0177070100010800FF628201621E52FF5502AB1B850177070100010801FF0101621E52FF5502AAF4750177070100010802FF0101621E52FF5327100177070100020800FF628201621E52FF55031FEB190177070100020801FF0101621E52FF55031FC4090177070100020802FF0101621E52FF5327100177070100100700FF0101621B52005301EE0177078181C78205FF0101010183029B147C682819FB0365A1AC68A7238153B1332CB24645E0CA769E8CA72CAC1603E84166642811060867CC46A9F87AF959010101634AB700760900000000055BC41762016200726302017101633FB0001B1B1B1B1A0050791B1B1B1B01010101760900000000055BC4196201620072630101760101090000000001C9415F0B06484147010754DED5CF010163A76100760900000000055BC41A620162007263070177010B06484147010754DED5CF070100620AFFFF7262016502981D997A77078181C78203FF01010101044841470177070100000009FF010101010B06484147010754DED5CF0177070100010800FF628201621E52FF5502AB1B870177070100010801FF0101621E52FF5502AAF4770177070100010802FF0101621E52FF5327100177070100020800FF628201621E52FF55031FEB190177070100020801FF0101621E52FF55031FC4090177070100020802FF0101621E52FF5327100177070100100700FF0101621B52005301ED0177078181C78205FF0101010183029B147C682819FB0365A1AC68A7238153B1332CB24645E0CA769E8CA72CAC1603E84166642811060867CC46A9F87AF95901010163922400760900000000055BC41B6201620072630201710163C052001B1B1B1B1A00F15F";
+
+
+#1B1B1B1B01010101760900000000055BC41F6201620072630101760101090000000001C941610B06484147010754DED5CF0101631E1F00760900000000055BC420620162007263070177010B06484147010754DED5CF070100620AFFFF7262016502981D9B7A77078181C78203FF01010101044841470177070100000009FF010101010B06484147010754DED5CF0177070100010800FF628201621E52FF5502AB1B8A0177070100010801FF0101621E52FF5502AAF47A0177070100010802FF0101621E52FF5327100177070100020800FF628201621E52FF55031FEB190177070100020801FF0101621E52FF55031F";
 
 
 # Inputvalue is $smlfile. This part checks if the SML header and footer are available and complete
@@ -73,131 +79,118 @@ my $length_value = 0;
 
 # Try to find a SML telegramm in the SML file
 
-while ($smlfile =~ m/7707[0-9A-F]{10}FF[0-9A-F]*/) {
-  $telegramm = $&;
-  # Try to find the OBIS code in the hash of known and supported OBIS codes
-  # OBIS Code with the start (7707) is always 8 bit long (16 nible)
+  while ($smlfile =~ m/7707[0-9A-F]{10}FF[0-9A-F]{16,9999}/) {
+    $telegramm = $&;
+
+    # Try to find the OBIS code in the hash of known and supported OBIS codes
+    # OBIS Code with the start (7707) is always 8 bit long (16 nible)
  
-  if (defined $obiscodes{substr($telegramm,0,16)}) {
+    if (defined $obiscodes{substr($telegramm,0,16)}) {
     
-    # OBIS code found start parsing
+      # OBIS code found start parsing
     
-    $length_all   = 16;    
-    $length_value = 0;
-    $direction = undef;
+      $length_all   = 16;    
+      $length_value = 0;
 
+      #Log3 $hash, 5, "SMLUSB: SML Telegram found: " . substr($telegramm,0,16);
 
-    print substr($telegramm,0,16);
-
-
-    ###########################################################
-    # Statusword
-    ###########################################################
-
-    # Detect length of status word (very static at the moment)
-    # You can find more information if you google for type length field
-    # 01 = Statusword not set
-    # 62 is (6 = no more tl fields and type = unsigned?, 2 = 2 bytes or 4 hex chars)
+      # Detect length of status word (very static at the moment)
+      # You can find more information if you google for type length field
+      # 01 = Statusword not set
+      # 62 is (6 = no more tl fields and type = unsigned?, 2 = 2 bytes or 4 hex chars)
     
-    $length_all+=hexstr_to_signed32int(substr($telegramm,17,1))*2+2;
+      $length_all+=hexstr_to_signed32int(substr($telegramm,17,1))*2+2;
 
-    # Detect the direction of engergy from the status word
+      # Detect the direction of engergy from the status word
   
-    $direction = "Bezug"       if (substr($telegramm,$length_all-4,2) eq "82");
-    $direction = "Einspeisung" if (substr($telegramm,$length_all-4,2) eq "A2");
+      $direction = "Bezug"       if (substr($telegramm,$length_all-4,2) eq "82");
+      $direction = "Einspeisung" if (substr($telegramm,$length_all-4,2) eq "A2");
+	        
+      # Detect the unit. Also very static and could be improved
 
-    print " " . substr($telegramm,16,4);
+		  if (substr($telegramm,$length_all,4) eq "621E") {
+			$unit = "W/h"; }
+		  else {
+			$unit = "W"; }
 
+      $length_all+=4;
 
-    ###########################################################
-    # Detect the unit. Also very static and could be improved
-    ###########################################################
+      # Detect the scaler. Also very static and could be improved
 
-    if (substr($telegramm,$length_all,4) eq "621E") {
-        $unit = "W/h"; }
+      $scaler=10 if (substr($telegramm,$length_all,4) eq "52FF"); 
+      $scaler=1  if (substr($telegramm,$length_all,4) eq "5200");
+      $scaler=1  if (substr($telegramm,$length_all,4) eq "5201");
+
+      $length_all+=4;
+
+      # Detect the value length.
+
+      $length_value=hexstr_to_signed32int(substr($telegramm,$length_all+1,1))*2;
+      $length_all+=2;   
+   
+      # If value is bigger than 9999 W/h change to kW/h 
+
+		if (sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler) > 9999) { 
+			$scaler = 10000; 
+			$unit = "kW/h"; }
+
+      # Output of results only if a meaningful value is found. Otherwise nothing happens.
+
+		if (sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler) > 0) {
+			#Log3 $hash, 5, "SMLUSB: Reading BulkUpdate. Value > 0";
+			
+			if ((substr($telegramm,0,16) eq "770701000F0700FF") || (substr($telegramm,0,16) eq "77070100100700FF")) {
+				#Log3 $hash, 5, "SMLUSB: Setting state";
+				print "$unit: " . sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler) . " - $direction\n";
+					if ($direction eq "Einspeisung") {
+						print $obiscodes{substr($telegramm,0,16)}; 
+						print sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler*-1)."\n";
+					}
+					else {
+						print $obiscodes{substr($telegramm,0,16)}; 
+						print sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler)."\n";
+					}
+			}
+			else {
+				print $obiscodes{substr($telegramm,0,16)}; 
+				print sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler)."\n";
+			}
+		}
+	}	
     else {
-        $unit = "W"; }
-
-    # Possible bug! Unit could theoretically be longer than 2 byte!
-    $length_all+=4;
-
-    print " " . substr($telegramm,20,4);
-
-    ############################################################
-    # Calculate the scaler 
-    ############################################################
-
-    $scaler = 10**hexstr_to_signed8int(substr($telegramm,$length_all+2,2));
-    # Possible bug! Scaler could theoretically be longer than 2 byte!
-    $length_all+=4;
-
-    print " " . substr($telegramm,24,4);
-
-    ############################################################
-    # Extract value
-    ############################################################
-
-    $length_value=hexstr_to_signed32int(substr($telegramm,$length_all+1,1))*2;
-    $length_all+=2;   
-    
-    print " " . substr($telegramm,28,2);
-    print " " . substr($telegramm,30,hex(substr($telegramm,29,1))*2) . "\t";
-
-    # If value is bigger than 9999 W/h change to kW/h 
-
-    if (sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))*$scaler) > 9999) { 
-      $scaler = 10**-4; 
-      $unit = "kW/h"; }
-
-    # Output of results only if a meaningful value is found. Otherwise nothing happens.
-
-    if (sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))*$scaler) > 0) {
-      print "$obiscodes{substr($telegramm,0,16)}";
-      print " : " . sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))*$scaler) . " $unit";  
-      if (defined $direction) {
-        print " --> Direction: $direction\n"; }
-      else {
-        print "\n"; }}
+      # If no known OBIS code can be found the telegramm will be ignored (or logged)
+      # print "No Obis Code found!: " . substr($telegramm,0,16) ."\n"; 
+      # The telegramm  header needs at least to be removed from the smlfile to detect the next one.
+      $length_all=16; 
+    }
  
+    # Remove found telegram from remaining sml file.
+	#print $smlfile;
+	#print "Diagnose: ";
+	#print " Length all: $length_all";
+	#print " Length value: $length_value";
+	#print " Length smlfile: ";
+	#print length($smlfile)."\n";
+	
+    $smlfile = substr($smlfile,index($smlfile,$&)+$length_all+$length_value,length($smlfile));
   }
-  else {
 
-    # If no known OBIS code can be found the telegramm will be ignored (or logged)
-    # print "No Obis Code found!: " . substr($telegramm,0,16) ."\n"; 
-    
-    # The telegramm  header needs at least to be removed from the smlfile to detect the next one.
-    
-    $length_all=16; 
-  }
- 
-  # Remove found telegram from remaining sml file.  
-  $smlfile = substr($smlfile,index($smlfile,$&)+$length_all+$length_value,length($smlfile));
-}
+  # No good crc16 function found or developed yet. This is a todo
+  #my $crc = substr($smlfile,length($smlfile)-4,4);
+  #print "CRC: $crc - \n";
 
-# No good crc16 function found or developed yet. This is a todo
-#my $crc = substr($smlfile,length($smlfile)-4,4);
-#print "CRC: $crc - \n";
+  #Log3 $hash, 5, "SMLUSB: Parsing ended";
 
+  #readingsEndUpdate($hash, 1); 
+
+  #return undef;
+
+
+#####################################
 sub hexstr_to_signed32int {
     my ($hexstr) = @_;
-    return 0
-      if $hexstr !~ /^[0-9A-Fa-f]{1,24}$/;
+    return 0  
+      if $hexstr !~ /^[0-9A-Fa-f]{1,35}$/;
     my $num = hex($hexstr);
-
-
-    # TODO!!!!! 30 ist falsch! Müsste 32 sein! Umrechnung von signed int!!!!
-    return $num >> 31 ? $num - 2 ** 30 : $num;
-}
-sub hexstr_to_signed8int {
-    my ($hexstr) = @_;
-    return 0
-      if $hexstr !~ /^[0-9A-Fa-f]{1,8}$/;
-    my $num = hex($hexstr);
-    return $num >> 7 ? $num - 2 ** 8 : $num;
-}
-sub hex2bin {
-        my $h = shift;
-        my $hlen = length($h);
-        my $blen = $hlen * 4;
-        return unpack("B$blen", pack("H$hlen", $h));
+    return $num >> 31 ? $num - 2 ** 32 : $num;
 }
