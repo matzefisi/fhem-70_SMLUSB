@@ -266,6 +266,10 @@ SMLUSB_Parse($$)
   
       $direction = "Bezug"       if (substr($telegramm,$length_all-4,2) eq "82");
       $direction = "Einspeisung" if (substr($telegramm,$length_all-4,2) eq "A2");
+
+      # Fix for BlackStone. This is the first meter, where the valTime field is set. 
+      # With this workaround we are ignoring it temporarily.
+      $length_all+=14            if (substr($telegramm,$length_all-2,2) eq "72");
       
       # Detect the unit. Also very static and could be improved
 
