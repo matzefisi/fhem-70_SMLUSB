@@ -244,7 +244,7 @@ SMLUSB_Parse($$)
     $telegramm = $&;
 
     # Try to find the OBIS code in the hash of known and supported OBIS codes
-    # OBIS Code with the start (7707) is always 8 bit long (16 nible)
+    # OBIS Code with the start (7707) is always 8 bytes long (16 nibble)
  
     if (defined $obiscodes{substr($telegramm,0,16)}) {
     
@@ -273,10 +273,10 @@ SMLUSB_Parse($$)
       
       # Detect the unit. Also very static and could be improved
 
-		  if (substr($telegramm,$length_all,4) eq "621E") {
-			$unit = "W/h"; }
-		  else {
-			$unit = "W"; }
+      if (substr($telegramm,$length_all,4) eq "621E") {
+        $unit = "Wh"; }
+      else {
+        $unit = "W"; }
 
       $length_all+=4;
 
@@ -292,33 +292,27 @@ SMLUSB_Parse($$)
 
       $length_value=hexstr_to_signed32int(substr($telegramm,$length_all+1,1))*2;
       $length_all+=2;   
-   
-      # If value is bigger than 9999 W/h change to kW/h 
-
-		if (sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler) > 9999) { 
-			$scaler = 10000; 
-			$unit = "kW/h"; }
 
       # Output of results only if a meaningful value is found. Otherwise nothing happens.
 
-		if (sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler) > 0) {
-			Log3 $hash, 5, "SMLUSB: Reading BulkUpdate. Value > 0";
-			
-			if ((substr($telegramm,0,16) eq "770701000F0700FF") || (substr($telegramm,0,16) eq "77070100100700FF")) {
-				Log3 $hash, 5, "SMLUSB: Setting state";
-				$hash->{STATE}="$unit: " . sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler) . " - $direction";
-					if ($direction eq "Einspeisung") {
-						readingsBulkUpdate($hash, $obiscodes{substr($telegramm,0,16)}, sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler*-1));
-					}
-					else {
-						readingsBulkUpdate($hash, $obiscodes{substr($telegramm,0,16)}, sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler));
-					}
-			}
-			else {
-				readingsBulkUpdate($hash, $obiscodes{substr($telegramm,0,16)}, sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler));
-			}
-		}
-	}	
+      if (sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler) > 0) {
+        Log3 $hash, 5, "SMLUSB: Reading BulkUpdate. Value > 0";
+	
+        if ((substr($telegramm,0,16) eq "770701000F0700FF") || (substr($telegramm,0,16) eq "77070100100700FF")) {
+          Log3 $hash, 5, "SMLUSB: Setting state";
+          $hash->{STATE}="$unit: " . sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler) . " - $direction";
+          if ($direction eq "Einspeisung") {
+            readingsBulkUpdate($hash, $obiscodes{substr($telegramm,0,16)}, sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler*-1));
+          }
+          else {
+            readingsBulkUpdate($hash, $obiscodes{substr($telegramm,0,16)}, sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler));
+          }
+        }
+        else {
+          readingsBulkUpdate($hash, $obiscodes{substr($telegramm,0,16)}, sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler));
+        }
+      }
+    }	
     else {
       # If no known OBIS code can be found the telegramm will be ignored (or logged)
       # print "No Obis Code found!: " . substr($telegramm,0,16) ."\n"; 
