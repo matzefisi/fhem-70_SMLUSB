@@ -225,7 +225,7 @@ SMLUSB_Parse($$)
   my ($hash,$rmsg) = @_;
 
   my $telegramm;
-  my $scaler;
+  my $scaler=0;
   my $unit;
   my $direction = "Bezug";
 
