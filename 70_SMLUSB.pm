@@ -8,9 +8,13 @@
 #
 # Used module 70_USBWX.pm as template. Thanks to Willi Herzig
 #
-# Matthias Rammes
 #
-##############################################
+# 2016-03-01 matzefis  V0.5 : Predefined scaler variable to fix devision by zero
+#                             Fixed the state setting
+#                             Renamed readings to be compliant to FHEM 5.7
+#
+#
+#################################################################################
 # $Id: 70_SMLUSB.pm 1000 2013-09-10 19:54:04Z matzefisi $
 package main;
 
@@ -21,14 +25,14 @@ use Device::SerialPort;
 use vars qw{%attr %defs};
 
 my %obiscodes = (
- '77070100010800FF' => 'Zählerstand-Bezug-Total',
- '77070100020800FF' => 'Zählerstand-Lieferung-Total',
- '77070100010801FF' => 'Zählerstand-Tarif-1-Bezug',
- '77070100020801FF' => 'Zählerstand-Tarif-1-Lieferung',
- '77070100010802FF' => 'Zählerstand-Tarif-2-Bezug',
- '77070100020802FF' => 'Zählerstand-Tarif-2-Lieferung',
- '770701000F0700FF' => 'Momentanleistung',
- '77070100100700FF' => 'Momentanleistung');
+ '77070100010800FF' => 'total_consumption',
+ '77070100020800FF' => 'total_feed',
+ '77070100010801FF' => 'tariff1_consumption',
+ '77070100020801FF' => 'tarrif1_feed',
+ '77070100010802FF' => 'tariff2_consumption',
+ '77070100020802FF' => 'tariff2_feed',
+ '770701000F0700FF' => 'power',
+ '77070100100700FF' => 'power');
 
 #####################################
 sub
@@ -300,8 +304,8 @@ SMLUSB_Parse($$)
 	
         if ((substr($telegramm,0,16) eq "770701000F0700FF") || (substr($telegramm,0,16) eq "77070100100700FF")) {
           Log3 $hash, 5, "SMLUSB: Setting state";
-          $hash->{STATE}="$unit: " . sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler) . " - $direction";
-          if ($direction eq "Einspeisung") {
+          readingsBulkUpdate($hash, "state", "$unit: " . sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler) . " - $direction");
+	  if ($direction eq "Einspeisung") {
             readingsBulkUpdate($hash, $obiscodes{substr($telegramm,0,16)}, sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler*-1));
           }
           else {
