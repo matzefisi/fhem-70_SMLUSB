@@ -8,7 +8,9 @@
 #
 # Used module 70_USBWX.pm as template. Thanks to Willi Herzig
 #
+
 #
+
 # 2016-03-01 matzefis  V0.5 : Predefined scaler variable to fix devision by zero
 #                             Fixed the state setting
 #                             Renamed readings to be compliant to FHEM 5.7
@@ -140,6 +142,7 @@ my $buf;
 delete $hash->{FD};
 delete($selectlist{"$name.$dev"});
 $readyfnlist{"$name.$dev"} = $hash;
+
 SMLUSB_Clear($hash); 
 
 return undef; 
@@ -178,30 +181,31 @@ SMLUSB_Read($)
    	    return "";
   }
 
-  $hash->{buffer} .= uc(unpack('H*',$mybuf));
+  $hash->{helper}{PARTIAL} .= uc(unpack('H*',$mybuf));
 
-  Log3 $hash, 5, "Read. Buffer now:".$hash->{buffer};
+  Log3 $hash, 5, "Read. Buffer now:".$hash->{helper}{PARTIAL};
+
   # Find the end of a SML file
   # Source: http://de.wikipedia.org/wiki/Smart_Message_Language
   # ToDo: Sometimes the beginning (1B1B1B1B010101) is not complete. We should clarify this.
   
-   if ($hash->{buffer} =~ m/1B1B1B1B1A[0-9A-F]{6}$/) {
+   if ($hash->{helper}{PARTIAL} =~ m/1B1B1B1B1A[0-9A-F]{6}$/) {
         Log3 $hash, 5, "SMLUSB: End of SML found. Looking for a beginning.";
-        if ($hash->{buffer} =~ m/^1B1B1B1B01010101/) {
-          SMLUSB_Parse($hash, $hash->{buffer} );
+        if ($hash->{helper}{PARTIAL} =~ m/^1B1B1B1B01010101/) {
+          SMLUSB_Parse($hash, $hash->{helper}{PARTIAL} );
 		  
-          $hash->{buffer} = "";
+          $hash->{helper}{PARTIAL} = "";
           Log3 $hash, 5, "SMLUSB: Beginning of SML File found start parsing";
         } else {
-          if ($hash->{buffer} =~ m/^(1B){0,4}01010101/) {
-            $hash->{buffer} =~ s/^(1B){0,4}01010101/1B1B1B1B01010101/g;
-            SMLUSB_Parse($hash, $hash->{buffer} );
-            $hash->{buffer} = "";
+          if ($hash->{helper}{PARTIAL} =~ m/^(1B){0,4}01010101/) {
+            $hash->{helper}{PARTIAL} =~ s/^(1B){0,4}01010101/1B1B1B1B01010101/g;
+            SMLUSB_Parse($hash, $hash->{helper}{PARTIAL} );
+            $hash->{helper}{PARTIAL} = "";
             Log3 $hash, 5, "SMLUSB: Partial beginning of SML File found. Repaired and  start parsing";
           } else {
             #Log3 $hash, 5, "SMLUSB: No beginning of SML File found. Try it anyway, but no guarantee :) -> ". substr($hash->{helper}{PARTIAL},0,50);
             #SMLUSB_Parse($hash, $hash->{helper}{PARTIAL} );
-            $hash->{buffer} = "";
+            $hash->{helper}{PARTIAL} = "";
           }
         }
 
@@ -309,23 +313,35 @@ SMLUSB_Parse($$)
       $length_all+=2;   
 
 
+
+
+
+
+
       # Output of results only if a meaningful value is found. Otherwise nothing happens.
 
       if (sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler) > 0) {
         Log3 $hash, 5, "SMLUSB: Reading BulkUpdate. Value > 0";
+
 	
         if ((substr($telegramm,0,16) eq "770701000F0700FF") || (substr($telegramm,0,16) eq "77070100100700FF")) {
           Log3 $hash, 5, "SMLUSB: Setting state";
           readingsBulkUpdate($hash, "state", "$unit: " . sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler) . " - $direction");
 	  if ($direction eq "Einspeisung") {
             readingsBulkUpdate($hash, $obiscodes{substr($telegramm,0,16)}, sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler*-1));
+
           }
           else {
             readingsBulkUpdate($hash, $obiscodes{substr($telegramm,0,16)}, sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler));
+
+
           }
         }
         else {
           readingsBulkUpdate($hash, $obiscodes{substr($telegramm,0,16)}, sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler));
+
+
+
         }
       }
     }	
