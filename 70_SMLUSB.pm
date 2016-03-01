@@ -95,6 +95,10 @@ SMLUSB_Ready($)
   return DevIo_OpenDev($hash, 0, "SMLUSB_DoInit")
 	if($hash->{STATE} eq "disconnected");
 
+  my $po = $hash->{USBDev};
+  my ( $BlockingFlags, $InBytes, $OutBytes, $ErrorFlags ) = $po->status;
+  Log3 $hash, 5, "InBytes=".$InBytes;
+  return ( $InBytes > 0 );
 } 
 
 #####################################
@@ -111,9 +115,9 @@ SMLUSB_Clear($)
 my $hash = shift;
 my $buf;
 # clear buffer:
-if($hash->{SMLUSB}) 
+if($hash->{USBDev}) 
    {
-   while ($hash->{SMLUSB}->lookfor()) 
+   while ($hash->{USBDev}->lookfor()) 
       {
       $buf = DevIo_DoSimpleRead($hash);
       $buf = uc(unpack('H*',$buf));
@@ -129,9 +133,13 @@ SMLUSB_DoInit($)
 {
 my $hash = shift;
 my $name = $hash->{NAME}; 
+my $dev = $hash->{DeviceName};
 my $init ="?";
 my $buf;
 
+delete $hash->{FD};
+delete($selectlist{"$name.$dev"});
+$readyfnlist{"$name.$dev"} = $hash;
 SMLUSB_Clear($hash); 
 
 return undef; 
@@ -144,7 +152,7 @@ my ($hash, $arg) = @_;
 my $name = $hash->{NAME};
 delete $hash->{FD};
 $hash->{STATE}='close';
-$hash->{SMLUSB}->close() if($hash->{SMLUSB});
+$hash->{USBDev}->close() if($hash->{USBDev});
 Log3 $hash, 0, "SMLUSB: Undefined";
 return undef;
 } 
@@ -161,41 +169,44 @@ SMLUSB_Read($)
   my $char;
 
   my $mybuf = DevIo_DoSimpleRead($hash);
-  $mybuf = uc(unpack('H*',$mybuf));
 
-  my $usbdata = $hash->{helper}{PARTIAL};
+  
+
   
   if(!defined($mybuf) || length($mybuf) == 0) {
-  	SMLUSB_Disconnected($hash);
-   	return "";
+  	    SMLUSB_Disconnected($hash);
+   	    return "";
   }
 
+  $hash->{buffer} .= uc(unpack('H*',$mybuf));
+
+  Log3 $hash, 5, "Read. Buffer now:".$hash->{buffer};
   # Find the end of a SML file
   # Source: http://de.wikipedia.org/wiki/Smart_Message_Language
   # ToDo: Sometimes the beginning (1B1B1B1B010101) is not complete. We should clarify this.
   
-  if ((defined $hash->{helper}{PARTIAL}) and ($hash->{helper}{PARTIAL} =~ m/1B1B1B1B1A[0-9A-F]{6}$/)) {
+   if ($hash->{buffer} =~ m/1B1B1B1B1A[0-9A-F]{6}$/) {
         Log3 $hash, 5, "SMLUSB: End of SML found. Looking for a beginning.";
-        if ($hash->{helper}{PARTIAL} =~ m/^1B1B1B1B01010101/) {
-          SMLUSB_Parse($hash, $hash->{helper}{PARTIAL} );
-          $hash->{helper}{PARTIAL} = "";
+        if ($hash->{buffer} =~ m/^1B1B1B1B01010101/) {
+          SMLUSB_Parse($hash, $hash->{buffer} );
+		  
+          $hash->{buffer} = "";
           Log3 $hash, 5, "SMLUSB: Beginning of SML File found start parsing";
         } else {
-          if ($hash->{helper}{PARTIAL} =~ m/^(1B){0,4}01010101/) {
-            $hash->{helper}{PARTIAL} =~ s/^(1B){0,4}01010101/1B1B1B1B01010101/g;
-            SMLUSB_Parse($hash, $hash->{helper}{PARTIAL} );
-            $hash->{helper}{PARTIAL} = "";
+          if ($hash->{buffer} =~ m/^(1B){0,4}01010101/) {
+            $hash->{buffer} =~ s/^(1B){0,4}01010101/1B1B1B1B01010101/g;
+            SMLUSB_Parse($hash, $hash->{buffer} );
+            $hash->{buffer} = "";
             Log3 $hash, 5, "SMLUSB: Partial beginning of SML File found. Repaired and  start parsing";
           } else {
             #Log3 $hash, 5, "SMLUSB: No beginning of SML File found. Try it anyway, but no guarantee :) -> ". substr($hash->{helper}{PARTIAL},0,50);
             #SMLUSB_Parse($hash, $hash->{helper}{PARTIAL} );
-            $hash->{helper}{PARTIAL} = "";
+            $hash->{buffer} = "";
           }
         }
-  } else {
-  	$usbdata .= $mybuf;
-	$hash->{helper}{PARTIAL} = $usbdata;
-	$hash->{PARTIAL} = "";
+
+		
+		
   }
 
 } 
@@ -248,7 +259,7 @@ SMLUSB_Parse($$)
     $telegramm = $&;
 
     # Try to find the OBIS code in the hash of known and supported OBIS codes
-    # OBIS Code with the start (7707) is always 8 bytes long (16 nibble)
+    # OBIS Code with the start (7707) is always 8 bit long (16 nible)
  
     if (defined $obiscodes{substr($telegramm,0,16)}) {
     
@@ -277,10 +288,10 @@ SMLUSB_Parse($$)
       
       # Detect the unit. Also very static and could be improved
 
-      if (substr($telegramm,$length_all,4) eq "621E") {
-        $unit = "Wh"; }
-      else {
-        $unit = "W"; }
+		  if (substr($telegramm,$length_all,4) eq "621E") {
+			$unit = "W/h"; }
+		  else {
+			$unit = "W"; }
 
       $length_all+=4;
 
@@ -296,6 +307,7 @@ SMLUSB_Parse($$)
 
       $length_value=hexstr_to_signed32int(substr($telegramm,$length_all+1,1))*2;
       $length_all+=2;   
+
 
       # Output of results only if a meaningful value is found. Otherwise nothing happens.
 
