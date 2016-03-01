@@ -8,13 +8,12 @@
 #
 # Used module 70_USBWX.pm as template. Thanks to Willi Herzig
 #
-
 #
-
-# 2016-03-01 matzefis  V0.5 : Predefined scaler variable to fix devision by zero
-#                             Fixed the state setting
-#                             Renamed readings to be compliant to FHEM 5.7
-#
+# 2016-03-01 V0.5 : Predefined scaler variable to fix devision by zero
+#                   Fixed the state setting
+#                   Renamed readings to be compliant to FHEM 5.7
+#                   Added optional polling mode from (Thanks to Icinger):
+#                   http://forum.fhem.de/index.php/topic,49515.msg417459.html
 #
 #################################################################################
 # $Id: 70_SMLUSB.pm 1000 2013-09-10 19:54:04Z matzefisi $
@@ -50,7 +49,8 @@ SMLUSB_Initialize($)
   $hash->{ParseFn}    = "SMLUSB_Parse";
   $hash->{StateFn}    = "SMLUSB_SetState";
   $hash->{Match}      = ".*";
-  $hash->{AttrList}   = $readingFnAttributes;
+  $hash->{AttrFn}     = "SMLUSB_Attr";
+  $hash->{AttrList}   = "pollingMode:on,off ".$readingFnAttributes;
   $hash->{ShutdownFn} = "SMLUSB_Shutdown";
 
 }
@@ -140,8 +140,6 @@ my $init ="?";
 my $buf;
 
 delete $hash->{FD};
-delete($selectlist{"$name.$dev"});
-$readyfnlist{"$name.$dev"} = $hash;
 
 SMLUSB_Clear($hash); 
 
@@ -365,6 +363,38 @@ SMLUSB_Parse($$)
   readingsEndUpdate($hash, 1); 
 
   return undef;
+}
+
+#####################################
+sub
+SMLUSB_Attr(@) {
+my ($cmd,$name,$aName,$aVal) = @_;
+  	# $cmd can be "del" or "set"
+	# $name is device name
+	# aName and aVal are Attribute name and value
+    my $hash  = $defs{$name};
+    my $dev=$hash->{DeviceName};
+	if ($cmd eq "del") {
+		if ($aName eq "pollingMode") {
+				$hash->{FD}=$hash->{helper}{FD2};
+				delete($readyfnlist{"$name.$dev"});
+				$selectlist{"$name.$dev"} = $hash;
+		}		
+	}
+	if ($cmd eq "set") {
+		if ($aName eq "pollingMode")
+		{
+			if ($aVal eq "on") {
+				delete($selectlist{"$name.$dev"});
+				$readyfnlist{"$name.$dev"} = $hash;
+			} elsif ($aVal eq "off") {
+				delete($readyfnlist{"$name.$dev"});
+				$selectlist{"$name.$dev"} = $hash;
+			} 
+		}
+		
+	}
+	return undef;
 }
 
 #####################################
