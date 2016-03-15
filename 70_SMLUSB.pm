@@ -9,11 +9,10 @@
 # Used module 70_USBWX.pm as template. Thanks to Willi Herzig
 #
 #
-# 2016-03-01 V0.5 : Predefined scaler variable to fix devision by zero
-#                   Fixed the state setting
-#                   Renamed readings to be compliant to FHEM 5.7
-#                   Added optional polling mode from (Thanks to Icinger):
-#                   http://forum.fhem.de/index.php/topic,49515.msg417459.html
+# 2016-03-01 matzefis  V0.5 : Predefined scaler variable to fix devision by zero
+#                             Fixed the state setting
+#                             Renamed readings to be compliant to FHEM 5.7
+#
 #
 #################################################################################
 # $Id: 70_SMLUSB.pm 1000 2013-09-10 19:54:04Z matzefisi $
@@ -49,8 +48,7 @@ SMLUSB_Initialize($)
   $hash->{ParseFn}    = "SMLUSB_Parse";
   $hash->{StateFn}    = "SMLUSB_SetState";
   $hash->{Match}      = ".*";
-  $hash->{AttrFn}     = "SMLUSB_Attr";
-  $hash->{AttrList}   = "pollingMode:on,off ".$readingFnAttributes;
+  $hash->{AttrList}   = $readingFnAttributes;
   $hash->{ShutdownFn} = "SMLUSB_Shutdown";
 
 }
@@ -97,10 +95,6 @@ SMLUSB_Ready($)
   return DevIo_OpenDev($hash, 0, "SMLUSB_DoInit")
 	if($hash->{STATE} eq "disconnected");
 
-  my $po = $hash->{USBDev};
-  my ( $BlockingFlags, $InBytes, $OutBytes, $ErrorFlags ) = $po->status;
-  Log3 $hash, 5, "InBytes=".$InBytes;
-  return ( $InBytes > 0 );
 } 
 
 #####################################
@@ -117,9 +111,9 @@ SMLUSB_Clear($)
 my $hash = shift;
 my $buf;
 # clear buffer:
-if($hash->{USBDev}) 
+if($hash->{SMLUSB}) 
    {
-   while ($hash->{USBDev}->lookfor()) 
+   while ($hash->{SMLUSB}->lookfor()) 
       {
       $buf = DevIo_DoSimpleRead($hash);
       $buf = uc(unpack('H*',$buf));
@@ -135,11 +129,8 @@ SMLUSB_DoInit($)
 {
 my $hash = shift;
 my $name = $hash->{NAME}; 
-my $dev = $hash->{DeviceName};
 my $init ="?";
 my $buf;
-
-delete $hash->{FD};
 
 SMLUSB_Clear($hash); 
 
@@ -153,7 +144,7 @@ my ($hash, $arg) = @_;
 my $name = $hash->{NAME};
 delete $hash->{FD};
 $hash->{STATE}='close';
-$hash->{USBDev}->close() if($hash->{USBDev});
+$hash->{SMLUSB}->close() if($hash->{SMLUSB});
 Log3 $hash, 0, "SMLUSB: Undefined";
 return undef;
 } 
@@ -170,28 +161,23 @@ SMLUSB_Read($)
   my $char;
 
   my $mybuf = DevIo_DoSimpleRead($hash);
+  $mybuf = uc(unpack('H*',$mybuf));
 
-  
-
+  my $usbdata = $hash->{helper}{PARTIAL};
   
   if(!defined($mybuf) || length($mybuf) == 0) {
-  	    SMLUSB_Disconnected($hash);
-   	    return "";
+  	SMLUSB_Disconnected($hash);
+   	return "";
   }
-
-  $hash->{helper}{PARTIAL} .= uc(unpack('H*',$mybuf));
-
-  Log3 $hash, 5, "Read. Buffer now:".$hash->{helper}{PARTIAL};
 
   # Find the end of a SML file
   # Source: http://de.wikipedia.org/wiki/Smart_Message_Language
   # ToDo: Sometimes the beginning (1B1B1B1B010101) is not complete. We should clarify this.
   
-   if ($hash->{helper}{PARTIAL} =~ m/1B1B1B1B1A[0-9A-F]{6}$/) {
+  if ((defined $hash->{helper}{PARTIAL}) and ($hash->{helper}{PARTIAL} =~ m/1B1B1B1B1A[0-9A-F]{6}$/)) {
         Log3 $hash, 5, "SMLUSB: End of SML found. Looking for a beginning.";
         if ($hash->{helper}{PARTIAL} =~ m/^1B1B1B1B01010101/) {
           SMLUSB_Parse($hash, $hash->{helper}{PARTIAL} );
-		  
           $hash->{helper}{PARTIAL} = "";
           Log3 $hash, 5, "SMLUSB: Beginning of SML File found start parsing";
         } else {
@@ -206,9 +192,10 @@ SMLUSB_Read($)
             $hash->{helper}{PARTIAL} = "";
           }
         }
-
-		
-		
+  } else {
+  	$usbdata .= $mybuf;
+	$hash->{helper}{PARTIAL} = $usbdata;
+	$hash->{PARTIAL} = "";
   }
 
 } 
@@ -261,7 +248,7 @@ SMLUSB_Parse($$)
     $telegramm = $&;
 
     # Try to find the OBIS code in the hash of known and supported OBIS codes
-    # OBIS Code with the start (7707) is always 8 bit long (16 nible)
+    # OBIS Code with the start (7707) is always 8 bytes long (16 nibble)
  
     if (defined $obiscodes{substr($telegramm,0,16)}) {
     
@@ -290,10 +277,10 @@ SMLUSB_Parse($$)
       
       # Detect the unit. Also very static and could be improved
 
-		  if (substr($telegramm,$length_all,4) eq "621E") {
-			$unit = "W/h"; }
-		  else {
-			$unit = "W"; }
+      if (substr($telegramm,$length_all,4) eq "621E") {
+        $unit = "Wh"; }
+      else {
+        $unit = "W"; }
 
       $length_all+=4;
 
@@ -310,36 +297,23 @@ SMLUSB_Parse($$)
       $length_value=hexstr_to_signed32int(substr($telegramm,$length_all+1,1))*2;
       $length_all+=2;   
 
-
-
-
-
-
-
       # Output of results only if a meaningful value is found. Otherwise nothing happens.
 
       if (sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler) > 0) {
         Log3 $hash, 5, "SMLUSB: Reading BulkUpdate. Value > 0";
-
 	
         if ((substr($telegramm,0,16) eq "770701000F0700FF") || (substr($telegramm,0,16) eq "77070100100700FF")) {
           Log3 $hash, 5, "SMLUSB: Setting state";
           readingsBulkUpdate($hash, "state", "$unit: " . sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler) . " - $direction");
 	  if ($direction eq "Einspeisung") {
             readingsBulkUpdate($hash, $obiscodes{substr($telegramm,0,16)}, sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler*-1));
-
           }
           else {
             readingsBulkUpdate($hash, $obiscodes{substr($telegramm,0,16)}, sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler));
-
-
           }
         }
         else {
           readingsBulkUpdate($hash, $obiscodes{substr($telegramm,0,16)}, sprintf("%.2f",hexstr_to_signed32int(substr($telegramm,$length_all,$length_value-2))/$scaler));
-
-
-
         }
       }
     }	
@@ -363,38 +337,6 @@ SMLUSB_Parse($$)
   readingsEndUpdate($hash, 1); 
 
   return undef;
-}
-
-#####################################
-sub
-SMLUSB_Attr(@) {
-my ($cmd,$name,$aName,$aVal) = @_;
-  	# $cmd can be "del" or "set"
-	# $name is device name
-	# aName and aVal are Attribute name and value
-    my $hash  = $defs{$name};
-    my $dev=$hash->{DeviceName};
-	if ($cmd eq "del") {
-		if ($aName eq "pollingMode") {
-				$hash->{FD}=$hash->{helper}{FD2};
-				delete($readyfnlist{"$name.$dev"});
-				$selectlist{"$name.$dev"} = $hash;
-		}		
-	}
-	if ($cmd eq "set") {
-		if ($aName eq "pollingMode")
-		{
-			if ($aVal eq "on") {
-				delete($selectlist{"$name.$dev"});
-				$readyfnlist{"$name.$dev"} = $hash;
-			} elsif ($aVal eq "off") {
-				delete($readyfnlist{"$name.$dev"});
-				$selectlist{"$name.$dev"} = $hash;
-			} 
-		}
-		
-	}
-	return undef;
 }
 
 #####################################
@@ -434,14 +376,12 @@ SMLUSB_Disconnected($)
 
 =pod
 =begin html
-
 <a name="SMLUSB"></a>
 <h3>SMLUSB</h3>
 <ul>
   The SMLUSB module interprets SML Files which are received over a serial connection.</br>
   You can use for example the USB IR Read and write head from volkszaehler.org project.</br>
   <br><br>
-
   <a name="SMLUSBdefine"></a>
   <b>Define</b>
   <ul>
@@ -450,7 +390,6 @@ SMLUSB_Disconnected($)
     <br>Defines the device over a serial port<br>
     </pre>
   </ul>
-
   <a name="SMLUSBattr"></a>
   <b>Attributes</b>
   <ul>
@@ -458,6 +397,5 @@ SMLUSB_Disconnected($)
   </ul>
   <br>
 </ul>
-
 =end html
 =cut
